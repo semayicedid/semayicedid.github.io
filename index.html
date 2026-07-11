@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yurt Yoklama Sistemi</title>
+<meta name="description" content="Yurt kat, oda ve öğrenci yönetimi ile günlük yoklama takibi. Excel'e aktarılabilir.">
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- SheetJS (Excel export) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+<!-- Header -->
+<header id="site-header" class="bg-gradient-to-r from-indigo-700 to-indigo-500 text-white shadow-md sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-2xl">
+        <i class="fa-solid fa-building-user"></i>
+      </div>
+      <div>
+        <h1 class="text-lg sm:text-xl font-extrabold leading-tight">Yurt Yoklama Sistemi</h1>
+        <p class="text-indigo-100 text-xs sm:text-sm">Kat • Oda • Öğrenci Yönetimi ve Günlük Yoklama</p>
+      </div>
+    </div>
+    <div id="header-date" class="bg-white/15 rounded-lg px-3 py-2 text-sm font-medium"></div>
+  </div>
+
+  <!-- Tabs -->
+  <nav id="main-tabs" class="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto no-scrollbar">
+    <button data-tab="attendance" class="tab-btn active-tab">
+      <i class="fa-solid fa-clipboard-check"></i> Günlük Yoklama
+    </button>
+    <button data-tab="manage" class="tab-btn">
+      <i class="fa-solid fa-sitemap"></i> Kat / Oda / Öğrenci
+    </button>
+    <button data-tab="history" class="tab-btn">
+      <i class="fa-solid fa-clock-rotate-left"></i> Geçmiş Kayıtlar
+    </button>
+    <button data-tab="data" class="tab-btn">
+      <i class="fa-solid fa-database"></i> Veri Yedekleme
+    </button>
+  </nav>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6 pb-24">
+
+  <!-- ================= TAB: ATTENDANCE ================= -->
+  <section id="tab-attendance" class="tab-panel">
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 mb-5">
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Yoklama Tarihi</label>
+          <input type="date" id="attendance-date" class="input-field w-48">
+        </div>
+        <div class="flex-1 min-w-[160px]">
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Kata Göre Filtrele</label>
+          <select id="attendance-floor-filter" class="input-field w-full">
+            <option value="">Tüm Katlar</option>
+          </select>
+        </div>
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Öğrenci / Oda Ara</label>
+          <input type="text" id="attendance-search" placeholder="İsim veya oda numarası ara..." class="input-field w-full">
+        </div>
+        <div class="flex gap-2 ml-auto">
+          <button id="btn-mark-all-present" class="btn-secondary"><i class="fa-solid fa-check-double"></i> Hepsi Yurtta</button>
+          <button id="btn-mark-all-absent" class="btn-secondary"><i class="fa-solid fa-xmark"></i> Hepsi Dışarıda</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div id="attendance-summary" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"></div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
+        <h2 class="font-bold text-slate-700"><i class="fa-solid fa-list-check text-indigo-500"></i> Yoklama Listesi</h2>
+        <div class="flex gap-2 flex-wrap">
+          <button id="btn-save-attendance" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
+          <button id="btn-print-attendance" class="btn-secondary"><i class="fa-solid fa-print"></i> Yazdır</button>
+          <button id="btn-export-attendance" class="btn-success"><i class="fa-solid fa-file-excel"></i> Excel İndir</button>
+        </div>
+      </div>
+      <div id="attendance-list-container" class="divide-y divide-slate-100"></div>
+      <div id="attendance-empty" class="hidden p-10 text-center text-slate-400">
+        <i class="fa-solid fa-inbox text-4xl mb-3"></i>
+        <p>Henüz öğrenci eklenmemiş. Önce "Kat / Oda / Öğrenci" sekmesinden yurt yapınızı oluşturun.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: MANAGE ================= -->
+  <section id="tab-manage" class="tab-panel hidden">
+
+    <div class="grid md:grid-cols-3 gap-5">
+
+      <!-- Floors -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <h2 class="font-bold text-slate-700 mb-3"><i class="fa-solid fa-layer-group text-indigo-500"></i> Katlar</h2>
+        <form id="form-add-floor" class="flex gap-2 mb-3">
+          <input type="text" id="input-floor-name" placeholder="Örn: 1. Kat" class="input-field flex-1" required>
+          <button type="submit" class="btn-primary shrink-0"><i class="fa-solid fa-plus"></i></button>
+        </form>
+        <ul id="list-floors" class="space-y-2 max-h-[420px] overflow-y-auto"></ul>
+        <p id="floors-empty" class="hidden text-sm text-slate-400 text-center py-4">Henüz kat eklenmedi.</p>
+      </div>
+
+      <!-- Rooms -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <h2 class="font-bold text-slate-700 mb-3"><i class="fa-solid fa-door-closed text-indigo-500"></i> Odalar</h2>
+        <form id="form-add-room" class="space-y-2 mb-3">
+          <select id="select-room-floor" class="input-field w-full" required>
+            <option value="">Kat seçiniz</option>
+          </select>
+          <div class="flex gap-2">
+            <input type="text" id="input-room-number" placeholder="Oda No (örn: 101)" class="input-field flex-1" required>
+            <input type="number" id="input-room-capacity" placeholder="Kapasite" min="1" value="4" class="input-field w-24" required>
+            <button type="submit" class="btn-primary shrink-0"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </form>
+        <ul id="list-rooms" class="space-y-2 max-h-[420px] overflow-y-auto"></ul>
+        <p id="rooms-empty" class="hidden text-sm text-slate-400 text-center py-4">Henüz oda eklenmedi.</p>
+      </div>
+
+      <!-- Students -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <h2 class="font-bold text-slate-700 mb-3"><i class="fa-solid fa-user-graduate text-indigo-500"></i> Öğrenciler</h2>
+        <form id="form-add-student" class="space-y-2 mb-3">
+          <select id="select-student-room" class="input-field w-full" required>
+            <option value="">Oda seçiniz</option>
+          </select>
+          <div class="flex gap-2">
+            <input type="text" id="input-student-name" placeholder="Öğrenci Adı Soyadı" class="input-field flex-1" required>
+            <button type="submit" class="btn-primary shrink-0"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </form>
+        <ul id="list-students" class="space-y-2 max-h-[420px] overflow-y-auto"></ul>
+        <p id="students-empty" class="hidden text-sm text-slate-400 text-center py-4">Henüz öğrenci eklenmedi.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= TAB: HISTORY ================= -->
+  <section id="tab-history" class="tab-panel hidden">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 mb-5">
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Kayıtlı Tarihler</label>
+          <select id="history-date-select" class="input-field w-56">
+            <option value="">Bir tarih seçin</option>
+          </select>
+        </div>
+        <div class="flex gap-2 ml-auto flex-wrap">
+          <button id="btn-export-history-day" class="btn-success"><i class="fa-solid fa-file-excel"></i> Bu Tarihi İndir</button>
+          <button id="btn-export-history-all" class="btn-success"><i class="fa-solid fa-file-excel"></i> Tüm Kayıtları İndir</button>
+        </div>
+      </div>
+    </div>
+    <div id="history-summary" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"></div>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-100">
+        <h2 class="font-bold text-slate-700"><i class="fa-solid fa-table-list text-indigo-500"></i> Seçilen Tarihin Detayı</h2>
+      </div>
+      <div id="history-list-container" class="divide-y divide-slate-100"></div>
+      <p id="history-empty" class="p-10 text-center text-slate-400">
+        <i class="fa-solid fa-calendar-xmark text-4xl mb-3"></i><br>
+        Görüntülemek için önce yukarıdan bir tarih seçin.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= TAB: DATA / BACKUP ================= -->
+  <section id="tab-data" class="tab-panel hidden">
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <h2 class="font-bold text-slate-700 mb-2"><i class="fa-solid fa-download text-indigo-500"></i> Yedek Al</h2>
+        <p class="text-sm text-slate-500 mb-4">Bu site verileri tarayıcınızın hafızasında (localStorage) saklar. Verilerinizi kaybetmemek veya başka bir cihaza taşımak için JSON yedek dosyası indirebilirsiniz.</p>
+        <button id="btn-backup-download" class="btn-primary"><i class="fa-solid fa-file-arrow-down"></i> Yedeği İndir (.json)</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <h2 class="font-bold text-slate-700 mb-2"><i class="fa-solid fa-upload text-indigo-500"></i> Yedekten Geri Yükle</h2>
+        <p class="text-sm text-slate-500 mb-4">Önceden indirdiğiniz .json yedek dosyasını seçerek verilerinizi geri yükleyebilirsiniz. Bu işlem mevcut verilerin üzerine yazar.</p>
+        <input type="file" id="input-backup-restore" accept="application/json" class="input-field w-full mb-3">
+        <button id="btn-backup-restore" class="btn-secondary"><i class="fa-solid fa-rotate"></i> Geri Yükle</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-rose-200 p-5 md:col-span-2">
+        <h2 class="font-bold text-rose-600 mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Tüm Verileri Sıfırla</h2>
+        <p class="text-sm text-slate-500 mb-4">Kat, oda, öğrenci ve tüm yoklama kayıtlarını kalıcı olarak siler. Önce yedek almanız önerilir.</p>
+        <button id="btn-reset-all" class="btn-danger"><i class="fa-solid fa-trash"></i> Her Şeyi Sil</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="bg-slate-900 text-slate-400 text-sm py-6 text-center">
+  <p>Yurt Yoklama Sistemi &copy; <span id="footer-year"></span> — Veriler tarayıcınızda (localStorage) saklanır.</p>
+</footer>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
